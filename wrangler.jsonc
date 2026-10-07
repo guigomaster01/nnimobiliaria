@@ -16,6 +16,9 @@
       "service": "nnimobiliaria"
     }
   ],
+  "build": {
+    "command": "npx opennextjs-cloudflare build"
+  },
   "observability": {
     "enabled": true
   }
