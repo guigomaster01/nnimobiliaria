@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   MapPin,
@@ -24,37 +24,41 @@ export default function DashboardPage() {
   const [selectedCity, setSelectedCity] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setCurrentDate(new Date());
+  }, []);
+
   // Helper de filtragem de data
-  const isDateInPeriod = (dateStr: string | undefined, period: string): boolean => {
-    if (!dateStr || period === 'all') return true;
+  const isDateInPeriod = (dateStr: string | undefined, period: string, refDate: Date | null): boolean => {
+    if (!dateStr || period === 'all' || !refDate) return true;
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return true;
 
-    const now = new Date(); // Referência temporal
-
     if (period === 'today') {
       return (
-        date.getFullYear() === now.getFullYear() &&
-        date.getMonth() === now.getMonth() &&
-        date.getDate() === now.getDate()
+        date.getFullYear() === refDate.getFullYear() &&
+        date.getMonth() === refDate.getMonth() &&
+        date.getDate() === refDate.getDate()
       );
     }
 
     if (period === 'week') {
-      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffTime = Math.abs(refDate.getTime() - date.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays <= 7;
     }
 
     if (period === 'month') {
       return (
-        date.getFullYear() === now.getFullYear() &&
-        date.getMonth() === now.getMonth()
+        date.getFullYear() === refDate.getFullYear() &&
+        date.getMonth() === refDate.getMonth()
       );
     }
 
     if (period === 'last30') {
-      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffTime = Math.abs(refDate.getTime() - date.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays <= 30;
     }
@@ -75,14 +79,14 @@ export default function DashboardPage() {
       // Filtro de Período
       if (selectedPeriod !== 'all') {
         const dateToCheck = lead.status === 'ganho' ? (lead.updatedAt || lead.createdAt) : lead.createdAt;
-        if (!isDateInPeriod(dateToCheck, selectedPeriod)) {
+        if (!isDateInPeriod(dateToCheck, selectedPeriod, currentDate)) {
           return false;
         }
       }
 
       return true;
     });
-  }, [leads, selectedCity, selectedPeriod]);
+  }, [leads, selectedCity, selectedPeriod, currentDate]);
 
   // Vendas Ganhas
   const wonLeads = useMemo(
@@ -130,8 +134,13 @@ export default function DashboardPage() {
     : '0';
 
   // Novos leads criados hoje
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayStr = useMemo(() => {
+    if (!currentDate) return '';
+    return currentDate.toISOString().slice(0, 10);
+  }, [currentDate]);
+
   const newLeadsTodayCount = useMemo(() => {
+    if (!todayStr) return leads.length > 0 ? 2 : 0;
     return leads.filter((l) => (l.createdAt || '').slice(0, 10) === todayStr).length;
   }, [leads, todayStr]);
 
@@ -213,20 +222,21 @@ export default function DashboardPage() {
 
   // Saudação e Data
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
+    if (!currentDate) return 'BOM DIA';
+    const hour = currentDate.getHours();
     return hour < 12 ? 'BOM DIA' : hour < 18 ? 'BOA TARDE' : 'BOA NOITE';
-  }, []);
+  }, [currentDate]);
 
   const formattedDate = useMemo(() => {
-    const d = new Date();
-    const str = d.toLocaleDateString('pt-BR', {
+    if (!currentDate) return 'Painel de Controle Imobiliário';
+    const str = currentDate.toLocaleDateString('pt-BR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric'
     });
     return str.charAt(0).toUpperCase() + str.slice(1);
-  }, []);
+  }, [currentDate]);
 
   return (
     <div className="content-container">
